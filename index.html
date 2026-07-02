@@ -175,6 +175,11 @@ const undoCountSpan = document.getElementById('undoCount');
 
 // ==================== 初始化 ====================
 function initGame() {
+// 【新添加：读取保存的难度】
+  const savedDifficulty = localStorage.getItem('chess_difficulty');
+  if (savedDifficulty) {
+    difficultySelect.value = savedDifficulty;
+  }
   board = Array(10).fill(null).map(() => Array(9).fill(null));
   // 黑方 (顶端)
   board[0][0] = { type: TYPE.JU, side: BLACK }; board[0][8] = { type: TYPE.JU, side: BLACK };
@@ -689,7 +694,11 @@ function getLegalMoves(r, c, side) {
 
 // ==================== 事件绑定 ====================
 restartBtn.addEventListener('click', initGame);
-difficultySelect.addEventListener('change', initGame);
+// 【修改：切换难度时保存到本地存储】
+difficultySelect.addEventListener('change', () => {
+  localStorage.setItem('chess_difficulty', difficultySelect.value);
+  initGame();
+});
 undoBtn.addEventListener('click', undo);
 
 // ==================== 启动 ====================

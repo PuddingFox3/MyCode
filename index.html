@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>象棋·一步 - 初学者友好版</title>
+  <title>象棋：从零开始的深度学习</title>
   <style>
     * { box-sizing: border-box; user-select: none; -webkit-user-select: none; }
     body {
@@ -128,10 +128,11 @@
   
   <div class="top-bar">
     <select id="difficultySelect">
-      <option value="easy">🟢 简单 · 送子模式</option>
-      <option value="medium" selected>🟡 中等 · 贪吃模式</option>
-      <option value="hard">🔴 困难 · 保守模式</option>
-      <option value="expert">🔥 入流 · 博弈的开端</option>
+      <option value="easy">🟢 初识：移动棋子</option>
+      <option value="medium" selected>🟡 进攻：尝试吃子</option>
+      <option value="hard">🔴 谨慎：莫入虎穴</option>
+      <option value="expert">🔥 入流：评估敌人的行动</option>
+      <option value="defense">🛡️ 棋子间的配合：防御</option>
     </select>
     <button id="restartBtn">🔄 重开</button>
     <button id="undoBtn" disabled>↩️ 悔棋 (<span id="undoCount">3</span>)</button>
@@ -145,7 +146,7 @@
   <div id="game-over-msg"></div>
   <div class="footer-hint">
     💡 点击红方棋子选中，再点击绿色圆点走棋。<br>
-    每局有 <strong>3 次</strong> 悔棋机会，助你大胆探索！
+    请放下负担，在试错中深度学习吧！
   </div>
 
 <script>
@@ -161,7 +162,7 @@ let isPlayerTurn = true;
 let gameOver = false;
 let lastMove = null; // { fromR, fromC, toR, toC }
 let history = []; // 存储每一步 { fromR, fromC, toR, toC, captured }
-let undoRemain = 10;
+let undoRemain = 3;
 
 // DOM 引用
 const statusEl = document.getElementById('status');
@@ -198,9 +199,10 @@ function initGame() {
   gameOver = false;
   lastMove = null;
   history = [];
-  undoRemain = 10;
+  undoRemain = 3;
   gameOverMsgEl.innerText = '';
   statusEl.innerText = '♟ 轮到你了（红方）';
+
   updateUndoButton();
   renderBoard();
 }
@@ -278,7 +280,6 @@ function handleCellClick(r, c) {
   if (move) {
     const isGameOver = executeMove(move);
     if (isGameOver) {
-      // 游戏结束，无需AI走棋
       return;
     }
     isPlayerTurn = false;
@@ -295,13 +296,11 @@ function handleCellClick(r, c) {
 function executeMove(move) {
   const target = board[move.toR][move.toC];
   const moving = board[move.fromR][move.fromC];
-  // 记录历史
   history.push({
     fromR: move.fromR, fromC: move.fromC,
     toR: move.toR, toC: move.toC,
-    captured: target // 可能是null或棋子对象
+    captured: target
   });
-  // 执行移动
   board[move.toR][move.toC] = moving;
   board[move.fromR][move.fromC] = null;
   lastMove = { fromR: move.fromR, fromC: move.fromC, toR: move.toR, toC: move.toC };
@@ -310,7 +309,6 @@ function executeMove(move) {
   renderBoard();
   updateUndoButton();
 
-  // 胜负判定
   if (target && target.type === TYPE.JIANG) {
     gameOver = true;
     isPlayerTurn = false;
@@ -336,23 +334,18 @@ function undo() {
     statusEl.innerText = '⚠️ 没有足够的步数可以悔棋';
     return;
   }
-  // 弹出最后两步：AI步（索引1）和玩家步（索引0）
   const aiStep = history.pop();
   const playerStep = history.pop();
 
-  // 恢复AI步（先恢复后走的，确保顺序）
-  // AI步: 将棋子从 to 移回 from，并恢复 captured（如果有）
-  const aiFrom = board[aiStep.toR][aiStep.toC]; // 目前AI的棋子在这里
+  const aiFrom = board[aiStep.toR][aiStep.toC];
   board[aiStep.fromR][aiStep.fromC] = aiFrom;
-  board[aiStep.toR][aiStep.toC] = aiStep.captured; // 恢复被吃的棋子
+  board[aiStep.toR][aiStep.toC] = aiStep.captured;
 
-  // 恢复玩家步
-  const playerFrom = board[playerStep.toR][playerStep.toC]; // 目前玩家的棋子在这里
+  const playerFrom = board[playerStep.toR][playerStep.toC];
   board[playerStep.fromR][playerStep.fromC] = playerFrom;
   board[playerStep.toR][playerStep.toC] = playerStep.captured;
 
-  // 重置状态
-  lastMove = null; // 可以保留上一步，但清空更清晰
+  lastMove = null;
   gameOver = false;
   isPlayerTurn = true;
   selectedSquare = null;
@@ -366,9 +359,6 @@ function undo() {
 
 function updateUndoButton() {
   undoCountSpan.innerText = undoRemain;
-  undoBtn.disabled = (undoRemain <= 0 || history.length < 2 || gameOver);
-  // 如果游戏结束，也允许悔棋（但上面限制gameOver为禁用，其实可以不禁用，让玩家可悔棋回到之前状态）
-  // 改为：只要剩余次数>0且历史>=2就可用，不论游戏是否结束
   undoBtn.disabled = (undoRemain <= 0 || history.length < 2);
 }
 
@@ -451,25 +441,18 @@ function aiTurn() {
       let score = 0;
       const target = board[move.toR][move.toC];
       
-      // 1. 基础进攻：能吃子依然是好棋
       if (target) score += getPieceValue(target) * 1.5;
 
-      // 2. 模拟执行这一步黑棋移动（用于评估移动后的盘面）
       const movingPiece = board[move.fromR][move.fromC];
       board[move.toR][move.toC] = movingPiece;
       board[move.fromR][move.fromC] = null;
 
-      // ====== 核心：评估“你（红方）的下一步行为” ======
-      
-      // 检查黑方移动后，落脚点自身是否安全
       const postAttackers = getAttackers(move.toR, move.toC, RED);
       if (postAttackers.length > 0) {
         const maxAttackerVal = Math.max(...postAttackers.map(a => getPieceValue(a)));
-        score -= maxAttackerVal * 0.8; // 避险：防止送子
+        score -= maxAttackerVal * 0.8;
       }
 
-      // 检查黑方移动后，红方是否能直接把黑方的“将/帅”吃掉（即红方处于将军状态）
-      // 找到黑方老帅当前的位置
       let jiangR = -1, jiangC = -1;
       for (let r = 0; r < 10; r++) {
         for (let c = 0; c < 9; c++) {
@@ -481,20 +464,79 @@ function aiTurn() {
         if (jiangR !== -1) break;
       }
       
-      // 如果老帅还在盘上，检查它在黑棋走完这步后是否处于红方火力下
       if (jiangR !== -1) {
         const jiangAttackers = getAttackers(jiangR, jiangC, RED);
         if (jiangAttackers.length > 0) {
-          // 如果不理会这步棋会导致老帅被吃，属于绝对致命的伤害，给予极大的负分惩罚！
           score -= 500; 
         }
       }
 
-      // ====== 模拟撤销，恢复盘面 ======
       board[move.fromR][move.fromC] = movingPiece;
       board[move.toR][move.toC] = target;
 
-      // 3. 随机扰动
+      score += (Math.random() - 0.5) * 0.5;
+
+      if (score > bestScore) {
+        bestScore = score;
+        bestMoves = [move];
+      } else if (Math.abs(score - bestScore) < 0.01) {
+        bestMoves.push(move);
+      }
+    }
+    chosenMove = bestMoves[Math.floor(Math.random() * bestMoves.length)];
+  } else if (difficulty === 'defense') {
+    let bestScore = -9999;
+    let bestMoves = [];
+
+    for (const move of allMoves) {
+      let score = 0;
+      const target = board[move.toR][move.toC];
+      
+      if (target) score += getPieceValue(target) * 1.5;
+
+      const movingPiece = board[move.fromR][move.fromC];
+      board[move.toR][move.toC] = movingPiece;
+      board[move.fromR][move.fromC] = null;
+
+      const postAttackers = getAttackers(move.toR, move.toC, RED);
+      if (postAttackers.length > 0) {
+        const maxAttackerVal = Math.max(...postAttackers.map(a => getPieceValue(a)));
+        score -= maxAttackerVal * 0.8;
+      }
+
+      let jiangR = -1, jiangC = -1;
+      for (let r = 0; r < 10; r++) {
+        for (let c = 0; c < 9; c++) {
+          if (board[r][c] && board[r][c].type === TYPE.JIANG && board[r][c].side === BLACK) {
+            jiangR = r; jiangC = c;
+            break;
+          }
+        }
+        if (jiangR !== -1) break;
+      }
+      
+      if (jiangR !== -1) {
+        const jiangAttackers = getAttackers(jiangR, jiangC, RED);
+        if (jiangAttackers.length > 0) {
+          score -= 500; 
+        }
+      }
+
+      // 【微小的防御配合逻辑】如果这步棋没有送子或避开了老帅危机，顺便给一个原本处于危险且“无根”的队友加上了根，提供 0.1 分微小奖励
+      for (let r = 0; r < 10; r++) {
+        for (let c = 0; c < 9; col++) {
+          let col = c; // 防止重名
+          if (board[r][col] && board[r][col].side === BLACK && (r !== move.toR || col !== move.toC)) {
+            if (getAttackers(r, col, RED).length > 0 && getAttackers(r, col, BLACK).length > 0) {
+              score += 0.1;
+            }
+          }
+        }
+      }
+
+      board[move.fromR][move.fromC] = movingPiece;
+      board[move.toR][move.toC] = target;
+
       score += (Math.random() - 0.5) * 0.5;
 
       if (score > bestScore) {

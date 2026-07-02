@@ -564,6 +564,20 @@ function aiTurn() {
       let jiangR = -1, jiangC = -1;
       for (let r = 0; r < 10; r++) {
         for (let c = 0; c < 9; c++) {
+          if (board[r][c] && board[r][c].type === TYPE.JIANG && board[r][c].side === aiSide) {
+            jiangR = r; jiangC = c;
+            break;
+          }
+        }
+        if (jiangR !== -1) break;
+      }
+      
+      if (jiangR !== -1) {
+        const jiangAttackers = getAttackers(jiangR, jiangC, humanSide);
+        if (jiangAttackers.length > 0) score -= 500; 
+      }
+      for (let r = 0; r < 10; r++) {
+        for (let c = 0; c < 9; c++) {
           let col = c;
           if (board[r][col] && board[r][col].side === aiSide && (r !== move.toR || col !== move.toC)) {
             if (getAttackers(r, col, humanSide).length > 0 && getAttackers(r, col, aiSide).length > 0) {

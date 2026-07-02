@@ -1,1 +1,1 @@
-# MyCode
+#Chinese chess learning
